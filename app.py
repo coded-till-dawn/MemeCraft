@@ -33,21 +33,34 @@ def main():
     st.markdown('<p class="main-header">MemeCraft</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Create viral memes in seconds using advanced AI.</p>', unsafe_allow_html=True)
     
-    # Check for API Key
-    if not os.getenv("REPLICATE_API_TOKEN"):
-        st.error("API Token missing! Please check your .env file.")
-        st.stop()
+    # --- API KEY HANDLING ---
+    api_key = os.getenv("REPLICATE_API_TOKEN")
+
+    # If no env key, ask the user
+    if not api_key:
+        st.warning("API Key not found in environment. Please enter your Replicate API key.")
+        api_key_input = st.text_input("Enter Replicate API Key:", type="password")
+
+        if api_key_input:
+            st.session_state["REPLICATE_API_TOKEN"] = api_key_input
+            api_key = api_key_input
+        else:
+            st.stop()
+
+    # Inject API key into environment for utils
+    os.environ["REPLICATE_API_TOKEN"] = api_key
 
     # Step 1: Generate Template
     with st.container():
         st.markdown("#### 1. Dream Up a Template")
         
-        # Use columns to center and constrain width (middle column is 50% width)
         _, col_center, _ = st.columns([1, 2, 1])
         
         with col_center:
-            # Stacked layout: Input first, then button below
-            template_desc = st.text_input("Describe the scene:", placeholder="e.g., A futuristic city where everyone rides giant hamsters")
+            template_desc = st.text_input(
+                "Describe the scene:", 
+                placeholder="e.g., A futuristic city where everyone rides giant hamsters"
+            )
             generate_btn = st.button("Generate Template")
 
     if "generated_image" not in st.session_state:
@@ -61,7 +74,6 @@ def main():
                 try:
                     img = ai_generator.generate_meme_image(template_desc)
                     st.session_state.generated_image = img
-                    # Reset final meme when new template is generated
                     if "final_meme" in st.session_state:
                         del st.session_state.final_meme
                 except Exception as e:
@@ -94,7 +106,6 @@ def main():
                 render_btn = st.form_submit_button("Render Final Meme")
 
         with col_preview:
-            # Logic to handle rendering
             if render_btn:
                 final_img = st.session_state.generated_image.copy()
                 st.session_state.final_meme = meme_renderer.render_meme(
@@ -108,23 +119,22 @@ def main():
                     padding=padding
                 )
             
-            # Display logic
             if "final_meme" in st.session_state:
-                 st.image(st.session_state.final_meme, caption="Your Masterpiece", use_column_width=True)
-                 
-                 # Download button for the final meme
-                 buf = BytesIO()
-                 st.session_state.final_meme.save(buf, format="JPEG")
-                 byte_im = buf.getvalue()
-                 
-                 st.download_button(
+                st.image(st.session_state.final_meme, caption="Your Masterpiece", use_column_width=True)
+                
+                buf = BytesIO()
+                st.session_state.final_meme.save(buf, format="JPEG")
+                byte_im = buf.getvalue()
+                
+                st.download_button(
                     label="Download Meme",
                     data=byte_im,
                     file_name="memecraft_creation.jpg",
                     mime="image/jpeg"
-                 )
+                )
             else:
-                 st.image(st.session_state.generated_image, caption="Raw Template", use_column_width=True)
+                st.image(st.session_state.generated_image, caption="Raw Template", use_column_width=True)
+
 
 if __name__ == "__main__":
     main()
